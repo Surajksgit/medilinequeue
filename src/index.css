@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --primary: #2563eb;
+  --secondary: #0f172a;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+@layer base {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-white text-slate-900 border border-slate-200 rounded-2xl font-bold shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600;
+}
+
+.mesh-bg {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(221, 83%, 93%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(210, 100%, 96%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(199, 89%, 94%, 1) 0, transparent 50%);
+}
