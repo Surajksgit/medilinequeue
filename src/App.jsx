@@ -16,9 +16,13 @@ import {
   Heart,
   Calendar,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Smartphone,
+  ShieldQuestion,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { sendOTP, verifyOTP, updateProfile } from './services/api';
 
 // --- Constants & Mock Data ---
 const DEPARTMENTS = [
@@ -39,6 +43,14 @@ const App = () => {
 
   const [activePatient, setActivePatient] = useState(null); // The user's active booking
   const [notifications, setNotifications] = useState([]);
+
+  // Auth States
+  const [user, setUser] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
+  const [authStep, setAuthStep] = useState('phone'); // phone, otp, profile
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // --- Helper Functions ---
   const addNotification = (msg) => {
@@ -88,6 +100,66 @@ const App = () => {
     }));
   };
 
+  // --- Auth Handlers ---
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const trimmedPhone = phoneNumber.trim();
+      await sendOTP(trimmedPhone);
+      setAuthStep('otp');
+      addNotification(`OTP sent to ${trimmedPhone}`);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to send OTP. Please try again.";
+      addNotification(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const trimmedPhone = phoneNumber.trim();
+      const trimmedOtp = otp.trim();
+      const { data } = await verifyOTP(trimmedPhone, trimmedOtp);
+      setAuthToken(data.token);
+      setUser(data.user);
+      if (!data.user.isProfileComplete) {
+        setAuthStep('profile');
+      } else {
+        addNotification(`Welcome back, ${data.user.name}!`);
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Invalid OTP. Please try again.";
+      addNotification(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleProfileUpdate = async (profileData) => {
+    setIsLoading(true);
+    try {
+      const { data } = await updateProfile(authToken, profileData);
+      setUser(data.user);
+      addNotification("Profile updated successfully!");
+    } catch (err) {
+      addNotification("Failed to update profile.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setAuthToken(null);
+    setAuthStep('phone');
+    setView('landing');
+    setActivePatient(null);
+  };
+
   // Push Alert Logic: Check if it's the active patient's turn
   useEffect(() => {
     if (activePatient && activePatient.status === 'waiting') {
@@ -127,10 +199,10 @@ const App = () => {
                 <motion.button
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  onClick={() => { setView('landing'); setActivePatient(null); }}
+                  onClick={logout}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                 >
-                  <LogOut className="w-4 h-4" /> Exit Portal
+                  <LogOut className="w-4 h-4" /> {user ? 'Logout' : 'Exit Portal'}
                 </motion.button>
               )}
             </div>
@@ -157,12 +229,31 @@ const App = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <PatientDashboard
-                queue={queue}
-                activePatient={activePatient}
-                onBook={handleBooking}
-                getCurrentToken={getCurrentToken}
-              />
+              {!user ? (
+                <AuthView
+                  step={authStep}
+                  phoneNumber={phoneNumber}
+                  setPhoneNumber={setPhoneNumber}
+                  otp={otp}
+                  setOtp={setOtp}
+                  onSendOTP={handleSendOTP}
+                  onVerifyOTP={handleVerifyOTP}
+                  isLoading={isLoading}
+                />
+              ) : !user.name ? (
+                <ProfileCompletionView
+                  onUpdate={handleProfileUpdate}
+                  isLoading={isLoading}
+                />
+              ) : (
+                <PatientDashboard
+                  queue={queue}
+                  activePatient={activePatient}
+                  onBook={handleBooking}
+                  getCurrentToken={getCurrentToken}
+                  user={user}
+                />
+              )}
             </motion.div>
           )}
           {view === 'doctor' && (
@@ -287,11 +378,14 @@ const LandingView = ({ onSelect }) => (
   </div>
 );
 
-const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken }) => {
+const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken, user }) => {
   const [step, setStep] = useState(activePatient ? 'tracking' : 'selecting');
   const [selectedDept, setSelectedDept] = useState(null);
   const [patientForm, setPatientForm] = useState({
-    name: '', age: '', gender: 'Male', id: `REG${Math.floor(Math.random() * 9000) + 1000}`
+    name: user?.name || '',
+    age: user?.age || '',
+    gender: user?.gender || 'Male',
+    id: `REG${Math.floor(Math.random() * 9000) + 1000}`
   });
 
   if (activePatient || step === 'tracking') {
@@ -648,9 +742,9 @@ const DoctorDashboard = ({ queue, onUpdateStatus }) => {
                     </td>
                     <td className="px-8 py-6">
                       <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${p.status === 'consulted' ? 'bg-emerald-100 text-emerald-600' :
-                          p.status === 'consulting' ? 'bg-blue-100 text-blue-600' :
-                            p.status === 'cancelled' ? 'bg-red-100 text-red-600' :
-                              'bg-slate-100 text-slate-400'
+                        p.status === 'consulting' ? 'bg-blue-100 text-blue-600' :
+                          p.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                            'bg-slate-100 text-slate-400'
                         }`}>
                         {p.status}
                       </span>
@@ -782,6 +876,156 @@ const DoctorDashboard = ({ queue, onUpdateStatus }) => {
           </motion.div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const AuthView = ({ step, phoneNumber, setPhoneNumber, otp, setOtp, onSendOTP, onVerifyOTP, isLoading }) => (
+  <div className="max-w-md mx-auto">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100"
+    >
+      <div className="flex flex-col items-center text-center mb-10">
+        <div className="bg-blue-100 p-4 rounded-3xl mb-6">
+          <Smartphone className="w-8 h-8 text-blue-600" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 mb-2">Patient Login</h2>
+        <p className="text-slate-500 font-medium">
+          {step === 'phone' ? "Enter your phone number to receive an verification code." : "Verify your identity with the 6-digit code sent to your phone."}
+        </p>
+      </div>
+
+      {step === 'phone' ? (
+        <form onSubmit={onSendOTP} className="space-y-6">
+          <div className="relative">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Phone Number</label>
+            <div className="relative">
+              <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-slate-400">+91</span>
+              <input
+                type="tel"
+                required
+                className="input-field pl-16"
+                placeholder="9876543210"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+              />
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={isLoading || phoneNumber.length < 10}
+            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black shadow-lg hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-3 uppercase tracking-widest"
+          >
+            {isLoading ? "Sending..." : "Send Verification Code"} <ArrowRight className="w-5 h-5" />
+          </motion.button>
+        </form>
+      ) : (
+        <form onSubmit={onVerifyOTP} className="space-y-6">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Verification Code</label>
+            <input
+              type="text"
+              maxLength="6"
+              required
+              className="input-field text-center tracking-[1em] font-black text-2xl"
+              placeholder="000000"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+            />
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={isLoading || otp.length < 6}
+            className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-blue-200 hover:bg-blue-500 disabled:opacity-50 transition-all flex items-center justify-center gap-3 uppercase tracking-widest"
+          >
+            {isLoading ? "Verifying..." : "Verify & Continue"} <ArrowRight className="w-5 h-5" />
+          </motion.button>
+          <div className="text-center">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">Demo Code: 123456</span>
+          </div>
+          <p className="text-center text-xs text-slate-400 font-bold uppercase tracking-widest">
+            Didn't get the code? <button type="button" onClick={onSendOTP} className="text-blue-600 hover:underline">Resend</button>
+          </p>
+        </form>
+      )}
+    </motion.div>
+  </div>
+);
+
+const ProfileCompletionView = ({ onUpdate, isLoading }) => {
+  const [formData, setFormData] = useState({ name: '', age: '', gender: 'Male' });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onUpdate(formData);
+  };
+
+  return (
+    <div className="max-w-md mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100"
+      >
+        <div className="flex flex-col items-center text-center mb-10">
+          <div className="bg-emerald-100 p-4 rounded-3xl mb-6">
+            <UserCheck className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h2 className="text-3xl font-black text-slate-900 mb-2">Complete Profile</h2>
+          <p className="text-slate-500 font-medium">Please provide your basic details for better clinical care.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Full Name</label>
+            <input
+              type="text"
+              required
+              className="input-field"
+              placeholder="Your full name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Age</label>
+              <input
+                type="number"
+                required
+                className="input-field"
+                placeholder="24"
+                value={formData.age}
+                onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Gender</label>
+              <select
+                className="input-field appearance-none"
+                value={formData.gender}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+              >
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={isLoading || !formData.name || !formData.age}
+            className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-500 disabled:opacity-50 transition-all flex items-center justify-center gap-3 uppercase tracking-widest"
+          >
+            {isLoading ? "Saving..." : "Start Consultation"} <ArrowRight className="w-5 h-5" />
+          </motion.button>
+        </form>
+      </motion.div>
     </div>
   );
 };
