@@ -64,10 +64,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
         { upsert: true, new: true }
     );
 
-    console.log(`OTP for ${formattedPhone}: ${otpCode} (Demo: 123456)`); // Mocking SMS delivery
+    console.log(`OTP for ${formattedPhone}: ${otpCode}`);
 
     res.status(200).json({
-        message: 'OTP sent successfully (mock). Use 123456 for demo.',
+        message: 'OTP sent successfully',
         phoneNumber: formattedPhone
     });
 });
@@ -86,16 +86,9 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
         // Demo OTP verification
         let isValid = false;
-        let otpEntry = null;
-
-        if (formattedOtp === '123456') {
-            console.log(`Demo OTP used for ${formattedPhone}`);
+        const otpEntry = await OTP.findOne({ phoneNumber: formattedPhone, otp: formattedOtp });
+        if (otpEntry) {
             isValid = true;
-        } else {
-            otpEntry = await OTP.findOne({ phoneNumber: formattedPhone, otp: formattedOtp });
-            if (otpEntry) {
-                isValid = true;
-            }
         }
 
         if (!isValid) {

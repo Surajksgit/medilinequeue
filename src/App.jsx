@@ -944,16 +944,13 @@ const AuthView = ({ step, phoneNumber, setPhoneNumber, otp, setOtp, onSendOTP, o
           >
             {isLoading ? "Verifying..." : "Verify & Continue"} <ArrowRight className="w-5 h-5" />
           </motion.button>
-          <div className="text-center">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">Demo Code: 123456</span>
-          </div>
           <p className="text-center text-xs text-slate-400 font-bold uppercase tracking-widest">
             Didn't get the code? <button type="button" onClick={onSendOTP} className="text-blue-600 hover:underline">Resend</button>
           </p>
         </form>
       )}
     </motion.div>
-  </div>
+  </div >
 );
 
 const ProfileCompletionView = ({ onUpdate, isLoading }) => {
