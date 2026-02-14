@@ -19,10 +19,20 @@ import {
   ArrowRight,
   Smartphone,
   ShieldQuestion,
-  Info
+  Info,
+  Star,
+  Building2,
+  Navigation
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sendOTP, verifyOTP, updateProfile } from './services/api';
+import asterImg from './assets/aster.jpeg';
+import trustImg from './assets/Medical_Trust3.jpg';
+import kimsImg from './assets/KIMS.jpg';
+import kochiImg from './assets/kochi.jpg';
+import tvmImg from './assets/trivandrum.jpg';
+import kozImg from './assets/i-love-kozhikode.jpg';
+
 
 // --- Constants & Mock Data ---
 const DEPARTMENTS = [
@@ -31,6 +41,107 @@ const DEPARTMENTS = [
   { id: 'ortho', name: 'Orthopedic Surgeon', fee: 450, color: 'bg-purple-500', lightColor: 'bg-purple-50', icon: ShieldCheck },
   { id: 'physician', name: 'General Physician', fee: 150, color: 'bg-orange-500', lightColor: 'bg-orange-50', icon: Users },
   { id: 'cardio', name: 'Cardiologist', fee: 500, color: 'bg-red-500', lightColor: 'bg-red-50', icon: Heart }
+];
+
+const LOCATIONS = [
+  { id: 'kochi', name: 'Kochi', count: 4, image: kochiImg },
+  { id: 'tvm', name: 'Trivandrum', count: 1, image: tvmImg },
+  { id: 'koz', name: 'Kozhikode', count: 3, image: kozImg },
+  { id: 'thr', name: 'Thrissur', count: 2, image: 'https://images.unsplash.com/photo-1596422846173-ade409ba8791?auto=format&fit=crop&q=80&w=400' }
+];
+
+const HOSPITALS = [
+  {
+    id: 'h1',
+    name: 'Aster Medcity',
+    location: 'kochi',
+    distance: '1.2 km',
+    rating: 4.8,
+    address: 'Kochi, Kerala',
+    image: asterImg,
+    isNearest: true
+  },
+  {
+    id: 'h2',
+    name: 'KIMS Hospital',
+    location: 'tvm',
+    distance: '3.5 km',
+    rating: 4.5,
+    address: 'Anayara, Trivandrum',
+    image: kimsImg
+  },
+  {
+    id: 'h3',
+    name: 'Meitra Hospital',
+    location: 'koz',
+    distance: '5.0 km',
+    rating: 4.9,
+    address: 'Kozhikode Bypass',
+    image: 'https://images.unsplash.com/photo-1586773860418-d3b978ec0aa7?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'h4',
+    name: 'Medical Trust',
+    location: 'kochi',
+    distance: '0.8 km',
+    rating: 4.2,
+    address: 'MG Road, Kochi',
+    image: trustImg
+  },
+  {
+    id: 'h5',
+    name: 'Lakeshore Hospital',
+    location: 'kochi',
+    distance: '2.5 km',
+    rating: 4.7,
+    address: 'Nettoor, Kochi',
+    image: 'https://images.unsplash.com/photo-1512678080530-7760d81faba6?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'h6',
+    name: 'Renai Medicity',
+    location: 'kochi',
+    distance: '4.1 km',
+    rating: 4.6,
+    address: 'Palarivattom, Kochi',
+    image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'h7',
+    name: 'Jubilee Mission',
+    location: 'thr',
+    distance: '1.5 km',
+    rating: 4.4,
+    address: 'East Fort, Thrissur',
+    image: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'h8',
+    name: 'West Fort Hospital',
+    location: 'thr',
+    distance: '2.2 km',
+    rating: 4.3,
+    address: 'West Fort, Thrissur',
+    image: 'https://images.unsplash.com/photo-1502740479091-6358875c8284?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'h9',
+    name: 'Baby Memorial',
+    location: 'koz',
+    distance: '3.2 km',
+    rating: 4.8,
+    address: 'Indira Gandhi Road, Kozhikode',
+    image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'h10',
+    name: 'Aster MIMS',
+    location: 'koz',
+    distance: '4.8 km',
+    rating: 4.7,
+    address: 'Govindapuram, Kozhikode',
+    image: 'https://images.unsplash.com/photo-1587350859728-117699f4a742?auto=format&fit=crop&q=80&w=400'
+  }
 ];
 
 const App = () => {
@@ -42,6 +153,8 @@ const App = () => {
   ]);
 
   const [activePatient, setActivePatient] = useState(null); // The user's active booking
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedHospital, setSelectedHospital] = useState(null);
   const [notifications, setNotifications] = useState([]);
 
   // Auth States
@@ -53,9 +166,15 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // --- Helper Functions ---
-  const addNotification = (msg) => {
-    const newNotif = { id: Date.now(), msg };
+  const addNotification = (msg, type = 'info') => {
+    const id = Date.now();
+    const newNotif = { id, msg, type };
     setNotifications(prev => [newNotif, ...prev].slice(0, 5));
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
   };
 
   const getDeptQueue = (deptId) => queue.filter(q => q.deptId === deptId);
@@ -85,14 +204,14 @@ const App = () => {
     };
     setQueue(prev => [...prev, booking]);
     setActivePatient(booking);
-    addNotification(`Booking confirmed for ${dept.name}. Token #${newToken}`);
+    addNotification(`Booking confirmed for ${dept.name}. Token #${newToken}`, 'success');
   };
 
   const updatePatientStatus = (regId, newStatus) => {
     setQueue(prev => prev.map(p => {
       if (p.id === regId) {
         if (newStatus === 'cancelled') {
-          addNotification(`Refund of ₹${p.paid} initiated for Patient ${p.id}`);
+          addNotification(`Refund of ₹${p.paid} initiated for Patient ${p.id}`, 'info');
         }
         return { ...p, status: newStatus };
       }
@@ -105,13 +224,13 @@ const App = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const trimmedPhone = phoneNumber.trim();
-      await sendOTP(trimmedPhone);
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      await sendOTP(cleanPhone);
       setAuthStep('otp');
-      addNotification(`OTP sent to ${trimmedPhone}`);
+      addNotification(`OTP sent to ${cleanPhone}`, 'info');
     } catch (err) {
       const errorMsg = err.response?.data?.message || "Failed to send OTP. Please try again.";
-      addNotification(errorMsg);
+      addNotification(errorMsg, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -121,19 +240,19 @@ const App = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const trimmedPhone = phoneNumber.trim();
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
       const trimmedOtp = otp.trim();
-      const { data } = await verifyOTP(trimmedPhone, trimmedOtp);
+      const { data } = await verifyOTP(cleanPhone, trimmedOtp);
       setAuthToken(data.token);
       setUser(data.user);
       if (!data.user.isProfileComplete) {
         setAuthStep('profile');
       } else {
-        addNotification(`Welcome back, ${data.user.name}!`);
+        addNotification(`Welcome back, ${data.user.name}!`, 'success');
       }
     } catch (err) {
       const errorMsg = err.response?.data?.message || "Invalid OTP. Please try again.";
-      addNotification(errorMsg);
+      addNotification(errorMsg, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -144,9 +263,9 @@ const App = () => {
     try {
       const { data } = await updateProfile(authToken, profileData);
       setUser(data.user);
-      addNotification("Profile updated successfully!");
+      addNotification("Profile updated successfully!", 'success');
     } catch (err) {
-      addNotification("Failed to update profile.");
+      addNotification("Failed to update profile.", 'error');
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +277,8 @@ const App = () => {
     setAuthStep('phone');
     setView('landing');
     setActivePatient(null);
+    setSelectedLocation(null);
+    setSelectedHospital(null);
   };
 
   // Push Alert Logic: Check if it's the active patient's turn
@@ -165,7 +286,7 @@ const App = () => {
     if (activePatient && activePatient.status === 'waiting') {
       const currentToken = getCurrentToken(activePatient.deptId);
       if (currentToken === activePatient.token) {
-        addNotification("🔔 IT'S YOUR TURN! Please proceed to the doctor's cabin.");
+        addNotification("🔔 IT'S YOUR TURN! Please proceed to the doctor's cabin.", 'success');
       }
     }
   }, [queue, activePatient]);
@@ -252,6 +373,10 @@ const App = () => {
                   onBook={handleBooking}
                   getCurrentToken={getCurrentToken}
                   user={user}
+                  selectedLocation={selectedLocation}
+                  setSelectedLocation={setSelectedLocation}
+                  selectedHospital={selectedHospital}
+                  setSelectedHospital={setSelectedHospital}
                 />
               )}
             </motion.div>
@@ -281,12 +406,23 @@ const App = () => {
               initial={{ opacity: 0, x: 100, scale: 0.9 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 100, scale: 0.9 }}
-              className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xl flex items-center gap-4 group"
+              className={`bg-white border p-4 rounded-2xl shadow-2xl flex items-center gap-4 group ${n.type === 'error' ? 'border-red-100' :
+                n.type === 'success' ? 'border-emerald-100' :
+                  'border-blue-100'
+                }`}
             >
-              <div className="bg-blue-50 text-blue-600 p-2 rounded-xl group-hover:rotate-12 transition-transform">
-                <Bell className="w-5 h-5" />
+              <div className={`p-2 rounded-xl group-hover:rotate-12 transition-transform ${n.type === 'error' ? 'bg-red-50 text-red-600' :
+                n.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
+                  'bg-blue-50 text-blue-600'
+                }`}>
+                {n.type === 'error' ? <XCircle className="w-5 h-5" /> :
+                  n.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> :
+                    <Bell className="w-5 h-5" />}
               </div>
-              <div className="flex-1 text-sm font-semibold text-slate-700">{n.msg}</div>
+              <div className={`flex-1 text-sm font-semibold ${n.type === 'error' ? 'text-red-700' :
+                n.type === 'success' ? 'text-emerald-700' :
+                  'text-blue-700'
+                }`}>{n.msg}</div>
               <button
                 onClick={() => setNotifications(prev => prev.filter(item => item.id !== n.id))}
                 className="text-slate-300 hover:text-slate-500 transition-colors"
@@ -378,8 +514,130 @@ const LandingView = ({ onSelect }) => (
   </div>
 );
 
-const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken, user }) => {
-  const [step, setStep] = useState(activePatient ? 'tracking' : 'selecting');
+const LocationSelectionView = ({ onSelect }) => (
+  <div className="space-y-12">
+    <div className="text-center max-w-2xl mx-auto">
+      <motion.h2
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-4xl font-black mb-4"
+      >
+        Select Your Location
+      </motion.h2>
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="text-slate-500 font-medium"
+      >
+        Find the best healthcare facilities in your city. Select a city to view available hospitals.
+      </motion.p>
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+      {LOCATIONS.map((loc, index) => (
+        <motion.div
+          key={loc.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+          whileHover={{ scale: 1.05, y: -10 }}
+          onClick={() => onSelect(loc)}
+          className="relative h-64 rounded-3xl overflow-hidden cursor-pointer group shadow-xl shadow-slate-200"
+        >
+          <img
+            src={loc.image}
+            alt={loc.name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent"></div>
+          <div className="absolute bottom-6 left-6 text-white">
+            <h3 className="text-2xl font-black mb-1">{loc.name}</h3>
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-300">{loc.count} Hospitals</p>
+          </div>
+          <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-xl border border-white/30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <MapPin className="text-white w-5 h-5" />
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+);
+
+const HospitalSelectionView = ({ onSelect, selectedLocation }) => {
+  const filteredHospitals = HOSPITALS.filter(h => h.location === selectedLocation.id);
+
+  return (
+    <div className="space-y-12">
+      <div className="text-center max-w-2xl mx-auto">
+        <motion.h2
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-4xl font-black mb-4"
+        >
+          Hospitals in {selectedLocation.name}
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-slate-500 font-medium"
+        >
+          Found {filteredHospitals.length} facilities near your location. We recommend the nearest center for faster care.
+        </motion.p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        {filteredHospitals.map((hospital, index) => (
+          <motion.div
+            key={hospital.id}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.1 }}
+            whileHover={{ y: -5 }}
+            onClick={() => onSelect(hospital)}
+            className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-blue-200/20 transition-all group cursor-pointer"
+          >
+            <div className="relative h-48 overflow-hidden">
+              <img
+                src={hospital.image}
+                alt={hospital.name}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              />
+              {hospital.isNearest && (
+                <div className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg">
+                  <Navigation className="w-3 h-3" /> Nearest to you
+                </div>
+              )}
+              <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-xl text-[10px] font-black text-slate-900 border border-white/50 flex items-center gap-1.5 shadow-sm">
+                <Star className="w-3 h-3 text-orange-500 fill-orange-500" /> {hospital.rating}
+              </div>
+            </div>
+            <div className="p-8">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-2xl font-black text-slate-900">{hospital.name}</h3>
+                <div className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-lg">{hospital.distance}</div>
+              </div>
+              <p className="text-slate-500 text-sm font-medium mb-6 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-slate-400" /> {hospital.address}
+              </p>
+              <div className="flex items-center text-slate-900 font-black text-xs uppercase tracking-widest gap-2 group-hover:text-blue-600 transition-colors">
+                Select This Hospital <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken, user, selectedLocation, setSelectedLocation, selectedHospital, setSelectedHospital }) => {
+  const [step, setStep] = useState(
+    activePatient ? 'tracking' :
+      selectedHospital ? 'selecting' :
+        selectedLocation ? 'hospital' : 'location'
+  );
   const [selectedDept, setSelectedDept] = useState(null);
   const [patientForm, setPatientForm] = useState({
     name: user?.name || '',
@@ -387,6 +645,27 @@ const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken, user 
     gender: user?.gender || 'Male',
     id: `REG${Math.floor(Math.random() * 9000) + 1000}`
   });
+
+  if (step === 'location') {
+    return <LocationSelectionView onSelect={(loc) => { setSelectedLocation(loc); setStep('hospital'); }} />;
+  }
+
+  if (step === 'hospital') {
+    return (
+      <div className="space-y-6">
+        <button
+          onClick={() => { setSelectedLocation(null); setStep('location'); }}
+          className="text-slate-400 font-black uppercase tracking-widest text-[10px] flex items-center gap-2 hover:text-blue-600 transition-colors"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" /> Change Location
+        </button>
+        <HospitalSelectionView
+          selectedLocation={selectedLocation}
+          onSelect={(h) => { setSelectedHospital(h); setStep('selecting'); }}
+        />
+      </div>
+    );
+  }
 
   if (activePatient || step === 'tracking') {
     const currentToken = getCurrentToken(activePatient?.deptId || '');
@@ -571,7 +850,16 @@ const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken, user 
 
   return (
     <div className="space-y-12">
-      <div className="text-center max-w-2xl mx-auto">
+      <div className="text-center max-w-2xl mx-auto relative">
+        <button
+          onClick={() => { setSelectedHospital(null); setStep('hospital'); }}
+          className="mb-8 text-slate-400 font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:text-blue-600 transition-colors mx-auto"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" /> Back to Hospital Selection
+        </button>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-6">
+          <Building2 className="w-3 h-3" /> {selectedHospital?.name}
+        </div>
         <motion.h2
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -585,7 +873,7 @@ const PatientDashboard = ({ queue, activePatient, onBook, getCurrentToken, user 
           transition={{ delay: 0.1 }}
           className="text-slate-500 font-medium"
         >
-          Choose a department to view real-time availability and consultant waiting times.
+          Choose a department at <span className="text-slate-900 font-bold">{selectedHospital?.name}</span> to view real-time availability.
         </motion.p>
       </div>
 

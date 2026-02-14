@@ -52,7 +52,12 @@ app.post('/api/auth/send-otp', async (req, res) => {
     const { phoneNumber } = req.body;
     if (!phoneNumber) return res.status(400).json({ message: 'Phone number is required' });
 
-    const formattedPhone = phoneNumber.toString().trim();
+    // Sanitize: Keep only digits
+    const formattedPhone = phoneNumber.toString().replace(/\D/g, '');
+
+    if (formattedPhone.length < 10) {
+        return res.status(400).json({ message: 'Invalid phone number format. Please provide at least 10 digits.' });
+    }
 
     // Generate a random 6-digit OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -64,11 +69,12 @@ app.post('/api/auth/send-otp', async (req, res) => {
         { upsert: true, new: true }
     );
 
-    console.log(`OTP for ${formattedPhone}: ${otpCode}`);
+    console.log(`[Send-OTP] OTP for ${formattedPhone}: ${otpCode}`);
 
     res.status(200).json({
         message: 'OTP sent successfully',
-        phoneNumber: formattedPhone
+        phoneNumber: formattedPhone,
+        otp: otpCode // Including OTP in response for testing/development
     });
 });
 
@@ -79,20 +85,40 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             return res.status(400).json({ message: 'Phone number and OTP are required' });
         }
 
-        const formattedPhone = phoneNumber.toString().trim();
+        // Sanitize: Keep only digits
+        const formattedPhone = phoneNumber.toString().replace(/\D/g, '');
         const formattedOtp = otp.toString().trim();
 
-        console.log(`Verifying OTP for ${formattedPhone}: ${formattedOtp}`);
+        console.log(`[Verify-OTP] Attempting to verify ${formattedPhone} with OTP: ${formattedOtp}`);
 
-        // Demo OTP verification
+        // Demo OTP verification (with bypass for 123456)
         let isValid = false;
-        const otpEntry = await OTP.findOne({ phoneNumber: formattedPhone, otp: formattedOtp });
-        if (otpEntry) {
+
+        // 1. Check for bypass
+        if (formattedOtp === '123456') {
+            console.log(`[Verify-OTP] Using demo bypass (123456) for ${formattedPhone}`);
             isValid = true;
+        } else {
+            // 2. Check DB
+            const otpEntry = await OTP.findOne({ phoneNumber: formattedPhone, otp: formattedOtp });
+            if (otpEntry) {
+                console.log(`[Verify-OTP] Found valid OTP entry in DB for ${formattedPhone}`);
+                isValid = true;
+                // Delete OTP after successful verification
+                await OTP.deleteOne({ _id: otpEntry._id });
+            } else {
+                // Debugging: see what's in the DB for this phone
+                const existing = await OTP.findOne({ phoneNumber: formattedPhone });
+                if (existing) {
+                    console.log(`[Verify-OTP] Found mismatched OTP in DB for ${formattedPhone}. Expected: ${existing.otp}, Got: ${formattedOtp}`);
+                } else {
+                    console.log(`[Verify-OTP] No OTP entry found in DB for ${formattedPhone}`);
+                }
+            }
         }
 
         if (!isValid) {
-            console.log(`Failed verification for ${formattedPhone}: Invalid or expired OTP`);
+            console.log(`[Verify-OTP] Failed verification for ${formattedPhone}: Invalid or expired OTP`);
             return res.status(400).json({ message: 'Invalid or expired OTP' });
         }
 
@@ -106,10 +132,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         // Generate JWT
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret_key', { expiresIn: '7d' });
 
-        // Delete OTP after verification if it was a real one
-        if (otpEntry) {
-            await OTP.deleteOne({ _id: otpEntry._id });
-        }
+
 
         console.log(`Successfully verified ${formattedPhone}`);
 
