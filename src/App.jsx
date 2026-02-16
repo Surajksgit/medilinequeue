@@ -32,6 +32,7 @@ import kimsImg from './assets/KIMS.jpg';
 import kochiImg from './assets/kochi.jpg';
 import tvmImg from './assets/trivandrum.jpg';
 import kozImg from './assets/i-love-kozhikode.jpg';
+import thrImg from './assets/thrissur1.jpg';
 
 
 // --- Constants & Mock Data ---
@@ -47,7 +48,7 @@ const LOCATIONS = [
   { id: 'kochi', name: 'Kochi', count: 4, image: kochiImg },
   { id: 'tvm', name: 'Trivandrum', count: 1, image: tvmImg },
   { id: 'koz', name: 'Kozhikode', count: 3, image: kozImg },
-  { id: 'thr', name: 'Thrissur', count: 2, image: 'https://images.unsplash.com/photo-1596422846173-ade409ba8791?auto=format&fit=crop&q=80&w=400' }
+  { id: 'thr', name: 'Thrissur', count: 2, image: thrImg }
 ];
 
 const HOSPITALS = [
