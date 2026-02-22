@@ -29,10 +29,10 @@ import { sendOTP, verifyOTP, updateProfile } from './services/api';
 import asterImg from './assets/aster.jpeg';
 import trustImg from './assets/Medical_Trust3.jpg';
 import kimsImg from './assets/KIMS.jpg';
-import kochiImg from './assets/kochi.jpg';
-import tvmImg from './assets/trivandrum.jpg';
+import kochiImg from './assets/ko.png';
+import tvmImg from './assets/tr.png';
 import kozImg from './assets/i-love-kozhikode.jpg';
-import thrImg from './assets/thrissur1.jpg';
+import thrImg from './assets/th.png';
 
 
 // --- Constants & Mock Data ---
